@@ -1,5 +1,6 @@
 """Script to create and benchmark a standalone MySQL server against a MySQL server cluster."""
 
+from os import path
 import boto3
 from botocore.exceptions import ClientError
 
@@ -80,3 +81,27 @@ def create_security_group():
         except ClientError as e:
             print(e)
             exit(1)
+
+
+def create_key_pair(key_name, private_key_filename):
+    """Generates a key pair to access our instance
+
+    Args:
+        key_name (str): key name
+        private_key_filename (str): filename to save the private key to
+    """
+    response = EC2_CLIENT.describe_key_pairs()
+    kp = [kp for kp in response['KeyPairs'] if kp['KeyName'] == key_name]
+    if len(kp) > 0 and not path.exists(private_key_filename):
+        print(f'{key_name} already exists distantly, but the private key file has not been downloaded. Either delete the remote key or download the associate private key as {private_key_filename}.')
+        exit(1)
+
+    print(f'Creating {private_key_filename}')
+    if path.exists(private_key_filename):
+        print(f'Private key {private_key_filename} already exists, using this file.')
+        return
+
+    response = EC2_CLIENT.create_key_pair(KeyName=key_name)
+    with open(private_key_filename, 'w+') as f:
+        f.write(response['KeyMaterial'])
+    print(f'{private_key_filename} written.')
