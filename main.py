@@ -11,6 +11,8 @@ from botocore.exceptions import ClientError
 
 parser = argparse.ArgumentParser(description='Instance setup.')
 parser.add_argument('--kill', action='store_true', default=False, help='Kill all running instances and exit')
+parser.add_argument('--standalone', action='store_true', default=False, help='Run standalone benchmark')
+parser.add_argument('--cluster', action='store_true', default=False, help='Run cluster benchmark')
 args = parser.parse_args()
 
 EC2_RESOURCE = boto3.resource('ec2')
@@ -262,5 +264,7 @@ if __name__ == "__main__":
     # Create a security group
     sg_id = create_security_group()
     print("")
-    standalone_instance = start_standalone_instance()
-    # mysql_cluster = start_cluster_instances()
+    if args.standalone:
+        standalone_instance = start_standalone_instance()
+    else:
+        mysql_cluster = start_cluster_instances()
