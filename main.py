@@ -1,5 +1,6 @@
 """Script to create and benchmark a standalone MySQL server against a MySQL server cluster."""
 
+import time
 import argparse
 from os import path
 import boto3
@@ -144,8 +145,8 @@ def terminate_all_running_instances():
         print(e)
 
 
-def start_instance():
-    """Starts instance"""
+def start_standalone_instance():
+    """Starts the instance for the MySQL standalone machine"""
     # Create the instance with the key pair
     instance = create_ec2('t2.micro', sg_id, key_name, 'standalone-mysql')
     print(f'Waiting for instance {instance.id} to be running...')
@@ -159,6 +160,8 @@ def start_instance():
     print('Wrote instance\'s IP and private key filename to env_variables.txt')
     print(
         f'Instance {instance.id} started. Access it with \'ssh -i {private_key_filename} ubuntu@{instance_ip}\'')
+    # time.sleep(20)  # Wait a little until instance is fully booted
+    return instance
 
 
 if __name__ == "__main__":
@@ -172,4 +175,6 @@ if __name__ == "__main__":
 
     # Create a security group
     sg_id = create_security_group()
-    start_instance()
+
+    # Start instance for standalone MySQL
+    standalone_instance = start_standalone_instance()
