@@ -1,8 +1,14 @@
 """Script to create and benchmark a standalone MySQL server against a MySQL server cluster."""
 
+import argparse
 from os import path
 import boto3
 from botocore.exceptions import ClientError
+
+
+parser = argparse.ArgumentParser(description='Instance setup.')
+parser.add_argument('--kill', action='store_true', default=False, help='Kill all running instances and exit')
+args = parser.parse_args()
 
 EC2_RESOURCE = boto3.resource('ec2')
 EC2_CLIENT = boto3.client('ec2')
@@ -156,6 +162,9 @@ def start_instance():
 
 
 if __name__ == "__main__":
+    if args.kill:
+        terminate_all_running_instances()
+        exit(0)
     # Create key pair
     key_name = 'PROJECT_KEY'
     private_key_filename = f'./private_key_{key_name}.pem'
