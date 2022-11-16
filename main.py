@@ -17,7 +17,7 @@ EC2_RESOURCE = boto3.resource('ec2')
 EC2_CLIENT = boto3.client('ec2')
 
 
-def create_ec2(instance_type, sg_id, key_name, instance_name):
+def create_ec2(instance_type, sg_id, key_name, instance_name, user_data=None):
     """Creates an EC2 instance
 
     Args:
@@ -25,6 +25,7 @@ def create_ec2(instance_type, sg_id, key_name, instance_name):
         sg_id (str): Security group ID
         key_name (str): SSH key name
         instance_name (str): Name of the machine instance
+        user_data (str): Script that gets executed on instance at start up
 
     Returns:
         instance: The created instance object
@@ -37,6 +38,7 @@ def create_ec2(instance_type, sg_id, key_name, instance_name):
         Monitoring={'Enabled': True},
         SecurityGroupIds=[sg_id],
         KeyName=key_name,
+        UserData=user_data,
         TagSpecifications=[
             {
                 'ResourceType': 'instance',
@@ -152,78 +154,62 @@ def terminate_all_running_instances():
 def start_standalone_instance():
     """Starts the instance for the MySQL standalone machine"""
     # Create the instance with the key pair
-    instance = create_ec2('t2.micro', sg_id, key_name, 'standalone-mysql')
+    instance = create_ec2('t2.micro', sg_id, key_name, 'standalone-mysql', get_user_data('standalone'))
     print(f'Waiting for instance {instance.id} to be running...')
     instance.wait_until_running()
     # Get the instance's IP
     instance_ip = retrieve_instance_ip(instance.id, silent=True)
 
-    with open('env_variables.txt', 'w+') as f:
-        f.write(f'INSTANCE_IP={instance_ip}\n')
-        f.write(f'PRIVATE_KEY_FILE={private_key_filename}\n')
-    print('Wrote instance\'s IP and private key filename to env_variables.txt')
+    # with open('env_variables.txt', 'w+') as f:
+    #     f.write(f'INSTANCE_IP={instance_ip}\n')
+    #     f.write(f'PRIVATE_KEY_FILE={private_key_filename}\n')
+    # print('Wrote instance\'s IP and private key filename to env_variables.txt')
     print(
-        f'Instance {instance.id} started. Access it with \'ssh -i {private_key_filename} ubuntu@{instance_ip}\'')
+        f'Access standalone instance with: \'ssh -i {private_key_filename} ubuntu@{instance_ip}\'')
+    print('Run benchmark with: ')
     return instance
 
 
-def run_standalone_benchmark(instance):
-    """Installs MySQL and runs the benchmark
+def get_user_data(instance_type):
+    """Creates user data script
 
     Args:
-        instance (boto3 object): Instance for the MySQL standalone server
+        instance_type (str): master or slave"""
+    user_data = f"""#!/bin/bash
+    cd /home/ubuntu/
+    sudo git clone https://github.com/PhilippPeron/cloud-log8415-project
+    cd /home/ubuntu/cloud-log8415-project/remote/
+    chmod +x setup_{instance_type}_mysql.sh
+    sh setup_{instance_type}_mysql.sh"""
+    return user_data
+
+
+def start_cluster_instances():
+    """Starts the instances for the MySQL cluster
 
     Returns:
-        None"""
-    instance_ip = retrieve_instance_ip(instance.id)
-    # Wait until instance is reachable
-    wait_time = 10
-    print(f"Waiting {wait_time}s to make sure instance is reachable")
-    time.sleep(wait_time)
-    commands = [
-        f"git clone https://github.com/PhilippPeron/cloud-log8415-project",
-        f"cd cloud-log8415-project/remote/",
-        #f"chmod +x setup_standalone_mysql.sh",
-        #f"sh setup_standalone_mysql.sh"
-    ]
-    automate = True
-    if automate:
-        ssh_commands = ["ssh", "-tt", "-i", private_key_filename, f"ubuntu@{instance_ip}"]
-        # Connect via SSH and run commands
-        sshProcess = subprocess.Popen(ssh_commands,
-                                      stdin=subprocess.PIPE,
-                                      stdout=subprocess.PIPE,
-                                      universal_newlines=True,
-                                      bufsize=0,
-                                      creationflags=CREATE_NEW_CONSOLE)
-        for command in commands:
-            sshProcess.stdin.write(command + "\n")
-        sshProcess.stdin.close()
-        for line in sshProcess.stdout:
-            if line == "END\n":
-                break
-            print(line, end="")
+        dict: Dictionary with one master and three slave instances"""
+    mysql_cluster = {}
+    # Create the instance with the key pair
+    mysql_cluster['master'] = create_ec2('t2.micro', sg_id, key_name, 'master-mysql', get_user_data('master'))
+    for slave_id in range(3):
+        mysql_cluster[f'slave_{slave_id}'] = create_ec2('t2.micro', sg_id, key_name, f'slave_{slave_id}', get_user_data('slave'))
 
-        # to catch the lines up to logout
-        for line in sshProcess.stdout:
-            print(line, end="")
-    else:
-        print(f"Please connect via ssh and execute the following commands:\n----------")
-        for command in commands:
-            print(command)
-        print("--------------")
+    print(f'Waiting for cluster instances to be running...')
+    for key, instance in mysql_cluster.items():
+        instance.wait_until_running()
+        # Get the instance's IP
+        instance_ip = retrieve_instance_ip(instance.id, silent=True)
+        print(
+            f'Access {key} instance with: \'ssh -i {private_key_filename} ubuntu@{instance_ip}\'')
 
+    # with open('env_variables.txt', 'w+') as f:
+    #     f.write(f'INSTANCE_IP={instance_ip}\n')
+    #     f.write(f'PRIVATE_KEY_FILE={private_key_filename}\n')
+    # print('Wrote instance\'s IP and private key filename to env_variables.txt')
 
-def benchmark_standalone():
-    """Setup standalone instance and run benchmark
-
-    Returns:
-        None
-    """
-    # Start instance for standalone MySQL
-    standalone_instance = start_standalone_instance()
-    # Setup and benchmark standalone MySQL
-    run_standalone_benchmark(standalone_instance)
+    print('Run benchmark with: ')
+    return mysql_cluster
 
 
 if __name__ == "__main__":
@@ -238,5 +224,5 @@ if __name__ == "__main__":
     # Create a security group
     sg_id = create_security_group()
     print("")
-    benchmark_standalone()
-
+    # standalone_instance = start_standalone_instance()
+    mysql_cluster = start_cluster_instances()
