@@ -151,21 +151,58 @@ def terminate_all_running_instances():
         print(e)
 
 
+def run_ssh_commands(commands, instance_ip):
+    """Create subprocess and run ssh commands
+
+    Args:
+        commands (list): list of commands as strings
+        instance_ip (str): ip of instance"""
+    print("Running SSH commands...")
+    ssh_commands = ["ssh", "-tt", "-i", private_key_filename, f"ubuntu@{instance_ip}"]
+    # Connect via SSH and run commands
+    sshProcess = subprocess.Popen(ssh_commands,
+                                  stdin=subprocess.PIPE,
+                                  stdout=subprocess.PIPE,
+                                  universal_newlines=True,
+                                  bufsize=0,
+                                  creationflags=CREATE_NEW_CONSOLE)
+    for command in commands:
+        sshProcess.stdin.write(command + "\n")
+    sshProcess.stdin.close()
+
+    for line in sshProcess.stdout:
+        if line == "ENDING\n":
+            break
+        print(f"    {line}", end="")
+    # # to catch the lines up to logout
+    # for line in sshProcess.stdout:
+    #     print(line, end="")
+
+
 def start_standalone_instance():
     """Starts the instance for the MySQL standalone machine"""
     # Create the instance with the key pair
-    instance = create_ec2('t2.micro', sg_id, key_name, 'standalone-mysql', get_user_data('standalone'))
+    instance = create_ec2('t2.micro', sg_id, key_name, 'standalone-mysql', user_data="")
     print(f'Waiting for instance {instance.id} to be running...')
     instance.wait_until_running()
     # Get the instance's IP
     instance_ip = retrieve_instance_ip(instance.id, silent=True)
 
-    # with open('env_variables.txt', 'w+') as f:
-    #     f.write(f'INSTANCE_IP={instance_ip}\n')
-    #     f.write(f'PRIVATE_KEY_FILE={private_key_filename}\n')
-    # print('Wrote instance\'s IP and private key filename to env_variables.txt')
+    # Wait until instance is reachable
+    wait_time = 10
+    print(f"Waiting {wait_time}s to make sure instance is reachable")
+    time.sleep(wait_time)
     print(
         f'Access standalone instance with: \'ssh -i {private_key_filename} ubuntu@{instance_ip}\'')
+    commands = [
+        f"sudo git clone https://github.com/PhilippPeron/cloud-log8415-project\n"
+        f"cd cloud-log8415-project/remote/\n",
+        f"sudo chmod +x setup_standalone_mysql.sh\n",
+        f"sudo sh setup_standalone_mysql.sh\n",
+        f"echo ENDING\n"
+    ]
+    run_ssh_commands(commands, instance_ip)
+
     print('Run benchmark with: ')
     return instance
 
@@ -178,9 +215,9 @@ def get_user_data(instance_type):
     user_data = f"""#!/bin/bash
     cd /home/ubuntu/
     sudo git clone https://github.com/PhilippPeron/cloud-log8415-project
-    cd /home/ubuntu/cloud-log8415-project/remote/
-    chmod +x setup_{instance_type}_mysql.sh
-    sh setup_{instance_type}_mysql.sh"""
+    cd /home/ubuntu/cloud-log8415-project/remote/"""
+    # sudo chmod +x setup_{instance_type}_mysql.sh
+    # sudo sh setup_{instance_type}_mysql.sh"""
     return user_data
 
 
@@ -190,26 +227,27 @@ def start_cluster_instances():
     Returns:
         dict: Dictionary with one master and three slave instances"""
     mysql_cluster = {}
+    mysql_cluster_ips = {}
     # Create the instance with the key pair
     mysql_cluster['master'] = create_ec2('t2.micro', sg_id, key_name, 'master-mysql', get_user_data('master'))
     for slave_id in range(3):
         mysql_cluster[f'slave_{slave_id}'] = create_ec2('t2.micro', sg_id, key_name, f'slave_{slave_id}', get_user_data('slave'))
 
     print(f'Waiting for cluster instances to be running...')
-    for key, instance in mysql_cluster.items():
-        instance.wait_until_running()
-        # Get the instance's IP
-        instance_ip = retrieve_instance_ip(instance.id, silent=True)
-        print(
-            f'Access {key} instance with: \'ssh -i {private_key_filename} ubuntu@{instance_ip}\'')
-
-    # with open('env_variables.txt', 'w+') as f:
-    #     f.write(f'INSTANCE_IP={instance_ip}\n')
-    #     f.write(f'PRIVATE_KEY_FILE={private_key_filename}\n')
-    # print('Wrote instance\'s IP and private key filename to env_variables.txt')
+    with open('env_variables.txt', 'w+') as f:
+        for key, instance in mysql_cluster.items():
+            instance.wait_until_running()
+            # Get the instance's IP
+            instance_ip = retrieve_instance_ip(instance.id, silent=True)
+            mysql_cluster_ips[key] = instance_ip
+            print(
+                f'Access {key} instance with: \'ssh -i {private_key_filename} ubuntu@{instance_ip}\'')
+            f.write(f'{key.upper()}={instance_ip}\n')
+        f.write(f'PRIVATE_KEY_FILE={private_key_filename}\n')
+    print('Wrote instance\'s IP and private key filename to env_variables.txt')
 
     print('Run benchmark with: ')
-    return mysql_cluster
+    return mysql_cluster, mysql_cluster_ips
 
 
 if __name__ == "__main__":
@@ -224,5 +262,5 @@ if __name__ == "__main__":
     # Create a security group
     sg_id = create_security_group()
     print("")
-    # standalone_instance = start_standalone_instance()
-    mysql_cluster = start_cluster_instances()
+    standalone_instance = start_standalone_instance()
+    # mysql_cluster = start_cluster_instances()
