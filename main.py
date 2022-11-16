@@ -127,7 +127,7 @@ def retrieve_instance_ip(instance_id):
 def start_instance():
     """Starts instance"""
     # Create the instance with the key pair
-    instance = create_ec2('m2.micro', sg_id, key_name)
+    instance = create_ec2('t2.micro', sg_id, key_name, 'standalone-mysql')
     print(f'Waiting for instance {instance.id} to be running...')
     instance.wait_until_running()
     # Get the instance's IP
