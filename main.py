@@ -124,6 +124,20 @@ def retrieve_instance_ip(instance_id):
     return instance_ip
 
 
+def terminate_all_running_instances():
+    """Terminate all currently running instances.
+    """
+    response = EC2_CLIENT.describe_instances()
+    instance_ids = [instance['Instances'][0]['InstanceId'] for instance in response['Reservations']
+        if instance['Instances'][0]['State']['Name'] == 'running']
+    print(f'Terminating : {instance_ids}')
+    try:
+        EC2_CLIENT.terminate_instances(InstanceIds=[instance_id for instance_id in instance_ids])
+    except ClientError as e:
+        print('Failed to terminate the instances.')
+        print(e)
+
+
 def start_instance():
     """Starts instance"""
     # Create the instance with the key pair
