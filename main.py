@@ -2,6 +2,9 @@
 
 import boto3
 
+EC2_RESOURCE = boto3.resource('ec2')
+EC2_CLIENT = boto3.client('ec2')
+
 
 def create_ec2(instance_type, sg_id, key_name):
     """Creates an EC2 instance
