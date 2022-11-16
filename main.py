@@ -93,7 +93,8 @@ def create_key_pair(key_name, private_key_filename):
     response = EC2_CLIENT.describe_key_pairs()
     kp = [kp for kp in response['KeyPairs'] if kp['KeyName'] == key_name]
     if len(kp) > 0 and not path.exists(private_key_filename):
-        print(f'{key_name} already exists distantly, but the private key file has not been downloaded. Either delete the remote key or download the associate private key as {private_key_filename}.')
+        print(
+            f'{key_name} already exists distantly, but the private key file has not been downloaded. Either delete the remote key or download the associate private key as {private_key_filename}.')
         exit(1)
 
     print(f'Creating {private_key_filename}')
@@ -105,3 +106,19 @@ def create_key_pair(key_name, private_key_filename):
     with open(private_key_filename, 'w+') as f:
         f.write(response['KeyMaterial'])
     print(f'{private_key_filename} written.')
+
+
+def retrieve_instance_ip(instance_id):
+    """Retrieves an instance's public IP
+
+    Args:
+        instance_id (str): instance id
+
+    Returns:
+        str: Instance's public IP
+    """
+    print(f'Retrieving instance {instance_id} public IP...')
+    instance_config = EC2_CLIENT.describe_instances(InstanceIds=[instance_id])
+    instance_ip = instance_config["Reservations"][0]['Instances'][0]['PublicIpAddress']
+    print(f'Public IP : {instance_ip}')
+    return instance_ip
