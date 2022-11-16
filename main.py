@@ -2,6 +2,8 @@
 
 import time
 import argparse
+import subprocess
+from subprocess import CREATE_NEW_CONSOLE
 from os import path
 import boto3
 from botocore.exceptions import ClientError
@@ -115,19 +117,21 @@ def create_key_pair(key_name, private_key_filename):
     print(f'{private_key_filename} written.')
 
 
-def retrieve_instance_ip(instance_id):
+def retrieve_instance_ip(instance_id, silent=False):
     """Retrieves an instance's public IP
 
     Args:
         instance_id (str): instance id
+        silent (bool): if function prints something
 
     Returns:
         str: Instance's public IP
     """
-    print(f'Retrieving instance {instance_id} public IP...')
     instance_config = EC2_CLIENT.describe_instances(InstanceIds=[instance_id])
     instance_ip = instance_config["Reservations"][0]['Instances'][0]['PublicIpAddress']
-    print(f'Public IP : {instance_ip}')
+    if not silent:
+        print(f'Retrieving instance {instance_id} public IP...')
+        print(f'Public IP : {instance_ip}')
     return instance_ip
 
 
@@ -152,7 +156,7 @@ def start_standalone_instance():
     print(f'Waiting for instance {instance.id} to be running...')
     instance.wait_until_running()
     # Get the instance's IP
-    instance_ip = retrieve_instance_ip(instance.id)
+    instance_ip = retrieve_instance_ip(instance.id, silent=True)
 
     with open('env_variables.txt', 'w+') as f:
         f.write(f'INSTANCE_IP={instance_ip}\n')
@@ -160,8 +164,66 @@ def start_standalone_instance():
     print('Wrote instance\'s IP and private key filename to env_variables.txt')
     print(
         f'Instance {instance.id} started. Access it with \'ssh -i {private_key_filename} ubuntu@{instance_ip}\'')
-    # time.sleep(20)  # Wait a little until instance is fully booted
     return instance
+
+
+def run_standalone_benchmark(instance):
+    """Installs MySQL and runs the benchmark
+
+    Args:
+        instance (boto3 object): Instance for the MySQL standalone server
+
+    Returns:
+        None"""
+    instance_ip = retrieve_instance_ip(instance.id)
+    # Wait until instance is reachable
+    wait_time = 10
+    print(f"Waiting {wait_time}s to make sure instance is reachable")
+    time.sleep(wait_time)
+    commands = [
+        f"git clone https://github.com/PhilippPeron/cloud-log8415-project",
+        f"cd cloud-log8415-project/remote/",
+        #f"chmod +x setup_standalone_mysql.sh",
+        #f"sh setup_standalone_mysql.sh"
+    ]
+    automate = True
+    if automate:
+        ssh_commands = ["ssh", "-tt", "-i", private_key_filename, f"ubuntu@{instance_ip}"]
+        # Connect via SSH and run commands
+        sshProcess = subprocess.Popen(ssh_commands,
+                                      stdin=subprocess.PIPE,
+                                      stdout=subprocess.PIPE,
+                                      universal_newlines=True,
+                                      bufsize=0,
+                                      creationflags=CREATE_NEW_CONSOLE)
+        for command in commands:
+            sshProcess.stdin.write(command + "\n")
+        sshProcess.stdin.close()
+        for line in sshProcess.stdout:
+            if line == "END\n":
+                break
+            print(line, end="")
+
+        # to catch the lines up to logout
+        for line in sshProcess.stdout:
+            print(line, end="")
+    else:
+        print(f"Please connect via ssh and execute the following commands:\n----------")
+        for command in commands:
+            print(command)
+        print("--------------")
+
+
+def benchmark_standalone():
+    """Setup standalone instance and run benchmark
+
+    Returns:
+        None
+    """
+    # Start instance for standalone MySQL
+    standalone_instance = start_standalone_instance()
+    # Setup and benchmark standalone MySQL
+    run_standalone_benchmark(standalone_instance)
 
 
 if __name__ == "__main__":
@@ -175,6 +237,6 @@ if __name__ == "__main__":
 
     # Create a security group
     sg_id = create_security_group()
+    print("")
+    benchmark_standalone()
 
-    # Start instance for standalone MySQL
-    standalone_instance = start_standalone_instance()
