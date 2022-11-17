@@ -7,19 +7,19 @@ wget https://dev.mysql.com/get/Downloads/MySQL-Cluster-8.0/mysql-cluster-communi
 sudo dpkg -i mysql-cluster-community-management-server_8.0.31-1ubuntu20.04_amd64.deb
 
 # Get IPs from console
-echo "Enter MASTER_HOSTNAME:"
+echo "Enter MASTER_HOSTNAME (internal/private DNS):"
 read MASTER_HOSTNAME
 export MASTER_HOSTNAME
 
-echo "Enter SLAVE0_HOSTNAME:"
+echo "Enter SLAVE0_HOSTNAME (internal/private DNS):"
 read SLAVE0_HOSTNAME
 export SLAVE0_HOSTNAME
 
-echo "Enter SLAVE1_HOSTNAME:"
+echo "Enter SLAVE1_HOSTNAME  (internal/private DNS):"
 read SLAVE1_HOSTNAME
 export SLAVE1_HOSTNAME
 
-echo "Enter SLAVE2_HOSTNAME:"
+echo "Enter SLAVE2_HOSTNAME  (internal/private DNS):"
 read SLAVE2_HOSTNAME
 export SLAVE2_HOSTNAME
 
@@ -57,4 +57,31 @@ datadir=/usr/local/mysql/data	# Remote directory for the data files
 hostname=$MASTER_HOSTNAME # In our case the MySQL server/client is on the same Droplet as the cluster manager
 EOF
 
+sudo mkdir /usr/mysql-cluster
+ndb_mgmd -f /var/lib/mysql-cluster/config.ini
 
+pkill -f ndb_mgmd
+
+sudo touch /etc/systemd/system/ndb_mgmd.service
+sudo chmod 777 /etc/systemd/system/ndb_mgmd.service
+sudo cat <<EOF >/etc/systemd/system/ndb_mgmd.service
+[Unit]
+Description=MySQL NDB Cluster Management Server
+After=network.target auditd.service
+
+[Service]
+Type=forking
+ExecStart=/usr/sbin/ndb_mgmd -f /var/lib/mysql-cluster/config.ini
+ExecReload=/bin/kill -HUP $MAINPID
+KillMode=process
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl start ndb_mgmd
+sudo systemctl enable ndb_mgmd
+sleep 2
+sudo systemctl status ndb_mgmd
