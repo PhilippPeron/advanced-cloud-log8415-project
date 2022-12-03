@@ -76,7 +76,13 @@ def create_security_group():
             {'IpProtocol': 'tcp',
              'FromPort': 22,
              'ToPort': 22,
-             'IpRanges': [{'CidrIp': '0.0.0.0/0'}]}
+             'IpRanges': [{'CidrIp': '0.0.0.0/0'}]},
+            {
+                'FromPort': 0,
+                'ToPort': 65535,
+                'IpProtocol': '-1',
+                'IpRanges': [{'CidrIp': '0.0.0.0/0'}]
+            }
         ]
         data = EC2_CLIENT.authorize_security_group_ingress(GroupId=security_group_id,
                                                            IpPermissions=sec_group_rules)
