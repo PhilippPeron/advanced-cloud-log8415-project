@@ -196,7 +196,7 @@ def start_standalone_instance():
         # sudo chmod +x setup_standalone_mysql.sh
         # sudo sh setup_standalone_mysql.sh
         """
-    instance = create_ec2('t2.micro', sg_id, key_name, 'standalone-mysql', user_data="")
+    instance = create_ec2('t2.micro', sg_id, key_name, 'standalone-mysql', user_data=user_data)
     print(f'Waiting for instance {instance.id} to be running...')
     instance.wait_until_running()
     # Get the instance's IP
