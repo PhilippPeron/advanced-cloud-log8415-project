@@ -191,10 +191,8 @@ def start_standalone_instance():
     """Starts the instance for the MySQL standalone machine"""
     # Create the instance with the key pair
     user_data = """#!/bin/bash
+        cd /home/ubuntu/
         sudo git clone https://github.com/PhilippPeron/cloud-log8415-project
-        cd cloud-log8415-project/remote/,
-        # sudo chmod +x setup_standalone_mysql.sh
-        # sudo sh setup_standalone_mysql.sh
         """
     instance = create_ec2('t2.micro', sg_id, key_name, 'standalone-mysql', user_data=user_data)
     print(f'Waiting for instance {instance.id} to be running...')
