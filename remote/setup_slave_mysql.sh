@@ -3,9 +3,9 @@
 sudo apt-get -qq update
 cd /home/ubuntu
 
-wget https://dev.mysql.com/get/Downloads/MySQL-Cluster-8.0/mysql-cluster-community-data-node_8.0.31-1ubuntu20.04_amd64.deb
+sudo wget https://dev.mysql.com/get/Downloads/MySQL-Cluster-8.0/mysql-cluster-community-data-node_8.0.31-1ubuntu20.04_amd64.deb
 sudo apt install libclass-methodmaker-perl
-dpkg -i mysql-cluster-community-data-node_8.0.31-1ubuntu20.04_amd64.deb
+sudo dpkg -i mysql-cluster-community-data-node_8.0.31-1ubuntu20.04_amd64.deb
 
 echo "Enter MASTER_HOSTNAME  (internal/private DNS):"
 read MASTER_HOSTNAME
