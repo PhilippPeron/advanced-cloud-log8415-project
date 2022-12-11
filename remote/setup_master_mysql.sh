@@ -1,12 +1,28 @@
 #!/bin/sh
 
 sudo apt-get update
+sudo apt-get -y upgrade
 cd /home/ubuntu
 
-wget https://dev.mysql.com/get/Downloads/MySQL-Cluster-8.0/mysql-cluster-community-management-server_8.0.31-1ubuntu20.04_amd64.deb
-sudo dpkg -i mysql-cluster-community-management-server_8.0.31-1ubuntu20.04_amd64.deb
+# Download MySQL server
+wget wget https://downloads.mysql.com/archives/get/p/14/file/mysql-cluster-community-management-server_7.6.23-1ubuntu18.04_amd64.deb
+sudo dpkg mysql-cluster-community-management-server_7.6.23-1ubuntu18.04_amd64.deb
+sudo mkdir /var/lib/mysql-cluster
 
-# Get IPs from console
+wget https://downloads.mysql.com/archives/get/p/14/file/mysql-cluster_7.6.23-1ubuntu18.04_amd64.deb-bundle.tar
+sudo mkdir install
+sudo tar -xvf mysql-cluster_7.6.23-1ubuntu18.04_amd64.deb-bundle.tar -C install/
+
+# Install Sakila Database
+sudo wget http://downloads.mysql.com/docs/sakila-db.zip
+sudo apt -y --fix-broken install
+sudo apt install unzip
+sudo unzip sakila-db.zip -d "/tmp/"
+
+# Install benchmarking tool
+sudo apt-get -y install sysbench
+
+# Get IPs from user through console input
 echo "Enter MASTER_HOSTNAME (internal/private DNS):"
 read MASTER_HOSTNAME
 export MASTER_HOSTNAME
@@ -30,7 +46,7 @@ sudo chmod 777 /var/lib/mysql-cluster/config.ini
 sudo cat <<EOF >/var/lib/mysql-cluster/config.ini
 [ndbd default]
 # Options affecting ndbd processes on all data nodes:
-NoOfReplicas=3	# Number of replicas
+NoOfReplicas=1	# Number of replicas
 
 [ndb_mgmd]
 # Management process options:
@@ -58,7 +74,7 @@ hostname=$MASTER_HOSTNAME # In our case the MySQL server/client is on the same D
 EOF
 
 sudo mkdir /usr/mysql-cluster
-ndb_mgmd -f /var/lib/mysql-cluster/config.ini
+sudo ndb_mgmd -f /var/lib/mysql-cluster/config.ini
 
 pkill -f ndb_mgmd
 
@@ -81,7 +97,7 @@ WantedBy=multi-user.target
 EOF
 
 sudo systemctl daemon-reload
-sudo systemctl start ndb_mgmd
 sudo systemctl enable ndb_mgmd
+sudo systemctl start ndb_mgmd
 sleep 2
 sudo systemctl status ndb_mgmd

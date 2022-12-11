@@ -3,9 +3,9 @@
 sudo apt-get -qq update
 cd /home/ubuntu
 
-sudo wget https://dev.mysql.com/get/Downloads/MySQL-Cluster-8.0/mysql-cluster-community-data-node_8.0.31-1ubuntu20.04_amd64.deb
+wget https://downloads.mysql.com/archives/get/p/14/file/mysql-cluster-community-data-node_7.6.23-1ubuntu18.04_amd64.deb
 sudo apt install libclass-methodmaker-perl
-sudo dpkg -i mysql-cluster-community-data-node_8.0.31-1ubuntu20.04_amd64.deb
+sudo dpkg -i mysql-cluster-community-data-node_7.6.23-1ubuntu18.04_amd64.deb
 
 echo "Enter MASTER_HOSTNAME  (internal/private DNS):"
 read MASTER_HOSTNAME
@@ -42,7 +42,7 @@ WantedBy=multi-user.target
 EOF
 
 sudo systemctl daemon-reload
-sudo systemctl start ndbd
 sudo systemctl enable ndbd
+sudo systemctl start ndbd
 sleep 2
 sudo systemctl status ndbd

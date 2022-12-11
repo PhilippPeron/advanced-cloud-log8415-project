@@ -33,7 +33,7 @@ def create_ec2(instance_type, sg_id, key_name, instance_name, user_data=None):
         instance: The created instance object
     """
     instance = EC2_RESOURCE.create_instances(
-        ImageId='ami-0a6b2839d44d781b2',
+        ImageId='ami-0ee23bfc74a881de5',
         MinCount=1,
         MaxCount=1,
         InstanceType=instance_type,
