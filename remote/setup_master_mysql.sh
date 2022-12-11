@@ -7,11 +7,9 @@ cd /home/ubuntu
 # Download MySQL server
 wget wget https://downloads.mysql.com/archives/get/p/14/file/mysql-cluster-community-management-server_7.6.23-1ubuntu18.04_amd64.deb
 sudo dpkg mysql-cluster-community-management-server_7.6.23-1ubuntu18.04_amd64.deb
-sudo mkdir /var/lib/mysql-cluster
 
 wget https://downloads.mysql.com/archives/get/p/14/file/mysql-cluster_7.6.23-1ubuntu18.04_amd64.deb-bundle.tar
-sudo mkdir install
-sudo tar -xvf mysql-cluster_7.6.23-1ubuntu18.04_amd64.deb-bundle.tar -C install/
+sudo tar -xvf mysql-cluster_7.6.23-1ubuntu18.04_amd64.deb-bundle.tar
 
 # Install Sakila Database
 sudo wget http://downloads.mysql.com/docs/sakila-db.zip
